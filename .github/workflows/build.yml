@@ -1,5 +1,7 @@
-name: Build Android APK
-
+- name: Build APK
+        run: |
+          cd kukhen
+          flet build apk
 on:
   workflow_dispatch:
 
