@@ -1,7 +1,5 @@
-- name: Build APK
-        run: |
-          cd kukhen
-          flet build apk --module-name main
+name: Build Android APK
+
 on:
   workflow_dispatch:
 
@@ -36,20 +34,11 @@ jobs:
 
       - name: Build APK
         run: |
-          flet build apk
+          cd kukhen
+          flet build apk --module-name main
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: KUKHEN-app
-          path: build/apk/*.apk
-
-      - name: Build APK
-        run: |
-          flet build apk --no-interactive
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: KUKHEN-app
-          path: build/apk/*.apk
+          path: kukhen/build/apk/*.apk
