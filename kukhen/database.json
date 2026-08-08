@@ -16,19 +16,20 @@
       "ingredients": [
         {
           "name": "Овсяные хлопья",
-          "amount": 100,
+          "amount": 100.0,
           "unit": "г",
           "category": "Бакалея"
         },
         {
           "name": "Молоко",
-          "amount": 200,
+          "amount": 200.0,
           "unit": "мл",
           "category": "Молочные продукты"
         }
       ],
-      "instructions": "Сварить овсянку на молоке, добавить ягоды по вкусу.",
-      "image_path": null
+      "instructions": "1. Сварить овсянку на молоке, добавить ягоды по вкусу.",
+      "image_path": null,
+      "comment": "изысканное блюдо"
     },
     {
       "id": "4c277ce4-824a-4ad7-b520-f079c8c65789",
@@ -57,6 +58,29 @@
       ],
       "instructions": "1. Съесть курачку\n2. Съесть грибочки\n3. Обмазаться сливками",
       "image_path": null
+    },
+    {
+      "id": "3442aff4-a9da-486f-aa46-8efc570c24d9",
+      "title": "Рисовая каша",
+      "category": "Завтрак",
+      "cooking_time": 15,
+      "ingredients": [
+        {
+          "name": "Рис",
+          "amount": 1.0,
+          "unit": "г",
+          "category": "Прочее"
+        },
+        {
+          "name": "Молоко",
+          "amount": 1.0,
+          "unit": "мл",
+          "category": "Молочные продукты"
+        }
+      ],
+      "instructions": "1. Съесть кашку",
+      "image_path": null,
+      "comment": "вкусняшка"
     }
   ],
   "cart": {}

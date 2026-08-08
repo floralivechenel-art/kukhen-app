@@ -2,6 +2,7 @@ import flet as ft
 import uuid
 from storage.repository import RecipeRepository
 from core.models import Recipe, Ingredient
+from google_drive import upload_backup_to_drive, download_backup_from_drive
 
 UNITS = [
     "г", 
@@ -45,7 +46,74 @@ def main(page: ft.Page):
     page.window.height = 750
     page.padding = 15
 
+    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+    page.vertical_alignment = ft.MainAxisAlignment.CENTER
+    # Способ 1: Прямое создание объекта Padding (работает во всех версиях)
+    page.padding = ft.Padding(left=15, top=12, right=15, bottom=24)
+
     repo = RecipeRepository()
+
+    # 1. ОБЕРТКА ДЛЯ ОГРАНИЧЕНИЯ ШИРИНЫ (Ставим в самом верху!)
+    def wrap_in_bounds(content_control):
+        return ft.Row(
+            [
+                ft.Container(
+                    content=content_control,
+                    expand=True,
+                    padding=ft.Padding(left=10, top=10, right=10, bottom=10),
+                )
+            ],
+            alignment=ft.MainAxisAlignment.CENTER,
+            vertical_alignment=ft.CrossAxisAlignment.CENTER,
+            expand=True,
+        )
+
+    def handle_restore(e):
+        snack = ft.SnackBar(ft.Text("Синхронизация рецептов с Google Диском..."))
+        page.overlay.append(snack)
+        snack.open = True
+        page.update()
+
+        success, message = download_backup_from_drive()
+        
+        if success:
+            if hasattr(repo, "reload"):
+                repo.reload()
+            elif hasattr(repo, "load_data"):
+                repo.load_data()
+
+            show_main_view()
+
+            success_snack = ft.SnackBar(ft.Text("Рецепты успешно восстановлены!"))
+            page.overlay.append(success_snack)
+            success_snack.open = True
+        else:
+            error_snack = ft.SnackBar(ft.Text(f"Ошибка: {message}"))
+            page.overlay.append(error_snack)
+            error_snack.open = True
+            
+        page.update()
+
+    # Объявляем AppBar один раз
+    main_appbar = ft.AppBar(
+        title=ft.Text("Kukhen", weight=ft.FontWeight.BOLD),
+        actions=[
+            ft.IconButton(
+                icon=ft.Icons.CLOUD_DOWNLOAD,
+                tooltip="Восстановить из Google Диска",
+                on_click=handle_restore,
+            ),
+        ],
+        bgcolor=ft.Colors.ORANGE_50,
+    )
+
+    def auto_sync_to_drive():
+        """Тихая отправка базы на Google Диск при изменениях"""
+        try:
+            # Отправляем копию в облако, не мешая пользователю
+            upload_backup_to_drive()
+        except Exception as err:
+            print(f"Фоновая синхронизация пропущена: {err}")
 
     # Навигация между вкладками
     def on_nav_change(e):
@@ -74,12 +142,15 @@ def main(page: ft.Page):
 
         initial_title = recipe_to_edit.title if recipe_to_edit else ""
         initial_time = str(recipe_to_edit.cooking_time) if recipe_to_edit else "15"
+        initial_comment = recipe_to_edit.comment if recipe_to_edit else ""
 
         title_input = ft.TextField(label="Название блюда", hint_text="Омлет с сыром", value=initial_title)
         time_input = ft.TextField(label="Время (мин)", keyboard_type=ft.KeyboardType.NUMBER, value=initial_time, width=120)
+        comment_input = ft.TextField(label="Заметка к рецепту (необязательно)",hint_text="можно накормить табор",value=initial_comment, multiline=True, min_lines=1, max_lines=3)
 
         ingredients_column = ft.Column(spacing=10)
         steps_column = ft.Column(spacing=8)
+    
 
         def add_ingredient_row(ing_data=None):
             def apply_known_pattern(e):
@@ -96,13 +167,14 @@ def main(page: ft.Page):
                 hint_text="например: Куриное филе",
                 expand=True,
                 value=ing_data.name if ing_data else "",
-                on_change=apply_known_pattern
+                on_change=apply_known_pattern,
+                dense=True
             )
 
             amount_tf = ft.TextField(
                 value=str(ing_data.amount) if ing_data else "1",
                 keyboard_type=ft.KeyboardType.NUMBER,
-                width=70,
+                width=100,
                 label="Сколько",
                 label_style=ft.TextStyle(size=10),
                 text_size=15,
@@ -110,7 +182,7 @@ def main(page: ft.Page):
             )
 
             unit_dd = ft.Dropdown(
-                width=70,
+                width=110,
                 options=[ft.dropdown.Option(u) for u in UNITS],
                 value=ing_data.unit if ing_data else UNITS[0],
                 label="Мерило",
@@ -139,8 +211,8 @@ def main(page: ft.Page):
                         [
                             name_tf,
                             ft.IconButton(
-                                icon=ft.Icons.DELETE, 
-                                icon_color=ft.Colors.RED_400, 
+                                icon=ft.Icons.DELETE,
+                                icon_color=ft.Colors.RED_400,
                                 on_click=lambda ev: remove_row(ing_card),
                                 tooltip="Удалить ингредиент"
                             )
@@ -148,10 +220,13 @@ def main(page: ft.Page):
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                     ),
                     ft.Row(
-                        [amount_tf, unit_dd, dept_dd],
+                        [amount_tf, unit_dd],
                         alignment=ft.MainAxisAlignment.START,
-                        spacing=8
-                    )
+                        spacing=8,
+                        wrap=True,
+                        run_spacing=8,
+                    ),
+                    dept_dd
                 ],
                 spacing=8
             )
@@ -204,6 +279,7 @@ def main(page: ft.Page):
             add_step_row()
 
         def save_recipe(e):
+            
             if not title_input.value.strip():
                 title_input.error_text = "Введите название!"
                 page.update()
@@ -246,13 +322,18 @@ def main(page: ft.Page):
                 category=category_name,
                 cooking_time=int(time_input.value) if time_input.value.isdigit() else 15,
                 ingredients=parsed_ingredients,
-                instructions=instructions
+                instructions=instructions,
+                comment=comment_input.value.strip(),
             )
 
             repo.add_recipe(updated_recipe)
             dialog.open = False
             page.update()
             show_category_view(category_name)
+
+            # 🚀 Параллельно отправляем свежую базу на Google Диск:
+            auto_sync_to_drive()
+
 
         def close_dialog(e):
             dialog.open = False
@@ -267,6 +348,7 @@ def main(page: ft.Page):
                     [
                         title_input,
                         time_input,
+                        comment_input,
                         ft.Divider(),
                         ft.Text("Ингредиенты:", weight=ft.FontWeight.BOLD),
                         ingredients_column,
@@ -295,6 +377,7 @@ def main(page: ft.Page):
     # --- 2. ПРОСМОТР РЕЦЕПТА И ВЫБОР ПОРЦИЙ ---
 
     def open_recipe_viewer(recipe):
+        comment_widget = ft.Text(f"💡 {recipe.comment}", size=14, color=ft.Colors.GREY_700) if (hasattr(recipe, "comment") and recipe.comment and recipe.comment.strip()) else None
         ingredients_list = ft.Column(
             controls=[
                 ft.Text(f"• {ing.name} — {format_amount(ing.amount)} {ing.unit}", size=14) 
@@ -351,10 +434,16 @@ def main(page: ft.Page):
             page.overlay.append(confirm_dialog)
             confirm_dialog.open = True
             page.update()
+            
+         # 🚀 Обновляем базу на Диске после удаления:
+            auto_sync_to_drive()
 
         def edit_recipe(e):
             close_viewer()
             open_add_recipe_dialog(category_name=recipe.category, recipe_to_edit=recipe)
+
+            # 🚀 Обновляем базу на Диске после удаления:
+            auto_sync_to_drive()
 
         viewer_dialog = ft.AlertDialog(
             title=ft.Row(
@@ -375,6 +464,7 @@ def main(page: ft.Page):
                         ft.Divider(),
                         ft.Text("Как готовить:", weight=ft.FontWeight.BOLD, size=16),
                         ft.Text(recipe.instructions, size=14),
+                        comment_widget if (hasattr(recipe, "comment") and recipe.comment and recipe.comment.strip()) else ft.Text("Заметок нет", color=ft.Colors.GREY_500),
                         ft.Divider(),
                         ft.Row(
                             [
@@ -389,7 +479,6 @@ def main(page: ft.Page):
                     tight=True,
                     scroll=ft.ScrollMode.AUTO,
                 ),
-                width=400,
             ),
             actions=[
                 ft.TextButton("Закрыть", on_click=close_viewer),
@@ -411,13 +500,14 @@ def main(page: ft.Page):
 
     def show_category_view(category_name: str):
         page.controls.clear()
+        page.appbar = main_appbar
 
         header = ft.Row(
             [
                 ft.IconButton(
                     icon=ft.Icons.ARROW_BACK,
                     on_click=go_back_to_main,
-                    tooltip="Назад"
+                    tooltip="Назад",
                 ),
                 ft.Text(category_name, size=22, weight=ft.FontWeight.BOLD),
             ],
@@ -443,28 +533,54 @@ def main(page: ft.Page):
                             ft.Row(
                                 [
                                     ft.Icon(
-                                        ft.Icons.RESTAURANT, 
-                                        size=28, 
-                                        color=ft.Colors.ORANGE_700
+                                        ft.Icons.RESTAURANT,
+                                        size=28,
+                                        color=ft.Colors.ORANGE_700,
                                     ),
                                     ft.IconButton(
-                                        icon=ft.Icons.SHOPPING_CART if in_cart else ft.Icons.ADD_SHOPPING_CART,
-                                        icon_color=ft.Colors.GREEN_600 if in_cart else ft.Colors.GREY_400,
+                                        icon=(
+                                            ft.Icons.SHOPPING_CART
+                                            if in_cart
+                                            else ft.Icons.ADD_SHOPPING_CART
+                                        ),
+                                        icon_color=(
+                                            ft.Colors.GREEN_600
+                                            if in_cart
+                                            else ft.Colors.GREY_400
+                                        ),
                                         icon_size=20,
-                                        tooltip="Убрать из корзины" if in_cart else "В корзину",
-                                        on_click=quick_toggle_cart
-                                    )
+                                        tooltip=(
+                                            "Убрать из корзины"
+                                            if in_cart
+                                            else "В корзину"
+                                        ),
+                                        on_click=quick_toggle_cart,
+                                    ),
                                 ],
-                                alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                                alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                             ),
-                            ft.Text(recipe.title, weight=ft.FontWeight.BOLD, size=14, max_lines=1, overflow="ellipsis"),
+                            ft.Text(
+                                recipe.title,
+                                weight=ft.FontWeight.BOLD,
+                                size=14,
+                                max_lines=1,
+                                overflow="ellipsis",
+                            ),
                             ft.Row(
                                 [
-                                    ft.Icon(ft.Icons.ACCESS_TIME, size=12, color=ft.Colors.GREY_600),
-                                    ft.Text(f"{recipe.cooking_time} мин", size=12, color=ft.Colors.GREY_600),
+                                    ft.Icon(
+                                        ft.Icons.ACCESS_TIME,
+                                        size=12,
+                                        color=ft.Colors.GREY_600,
+                                    ),
+                                    ft.Text(
+                                        f"{recipe.cooking_time} мин",
+                                        size=12,
+                                        color=ft.Colors.GREY_600,
+                                    ),
                                 ],
                                 alignment=ft.MainAxisAlignment.START,
-                            )
+                            ),
                         ],
                         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                     ),
@@ -477,8 +593,17 @@ def main(page: ft.Page):
         add_card = ft.Container(
             content=ft.Column(
                 [
-                    ft.Icon(ft.Icons.ADD_CIRCLE_OUTLINE, size=36, color=ft.Colors.ORANGE_600),
-                    ft.Text("Добавить", weight=ft.FontWeight.BOLD, color=ft.Colors.ORANGE_700, text_align=ft.TextAlign.CENTER),
+                    ft.Icon(
+                        ft.Icons.ADD_CIRCLE_OUTLINE,
+                        size=36,
+                        color=ft.Colors.ORANGE_600,
+                    ),
+                    ft.Text(
+                        "Добавить",
+                        weight=ft.FontWeight.BOLD,
+                        color=ft.Colors.ORANGE_700,
+                        text_align=ft.TextAlign.CENTER,
+                    ),
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -490,43 +615,67 @@ def main(page: ft.Page):
             on_click=lambda e: open_add_recipe_dialog(category_name),
         )
 
+        # Выбираем тело экрана (пустое состояние или сетка)
         if not recipes:
-            empty_state = ft.Column(
+            content_view = ft.Column(
                 [
                     ft.Icon(ft.Icons.MENU_BOOK, size=64, color=ft.Colors.GREY_400),
-                    ft.Text("Здесь пока пусто", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_600),
-                    ft.Text("Запишите свой первый рецепт в эту категорию!", size=14, color=ft.Colors.GREY_500, text_align=ft.TextAlign.CENTER),
+                    ft.Text(
+                        "Здесь пока пусто",
+                        size=18,
+                        weight=ft.FontWeight.BOLD,
+                        color=ft.Colors.GREY_600,
+                    ),
+                    ft.Text(
+                        "Запишите свой первый рецепт в эту категорию!",
+                        size=14,
+                        color=ft.Colors.GREY_500,
+                        text_align=ft.TextAlign.CENTER,
+                    ),
                     ft.Container(height=10),
                     ft.ElevatedButton(
                         "Записать рецепт",
                         icon=ft.Icons.ADD,
-                        style=ft.ButtonStyle(bgcolor=ft.Colors.ORANGE_400, color=ft.Colors.WHITE),
-                        on_click=lambda e: open_add_recipe_dialog(category_name)
-                    )
+                        style=ft.ButtonStyle(
+                            bgcolor=ft.Colors.ORANGE_400, color=ft.Colors.WHITE
+                        ),
+                        on_click=lambda e: open_add_recipe_dialog(category_name),
+                    ),
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                expand=True
+                expand=True,
             )
-            page.add(header, ft.Divider(), empty_state)
         else:
             grid = ft.GridView(
                 expand=True,
                 runs_count=2,
                 max_extent=180,
-                child_aspect_ratio=0.9,
+                child_aspect_ratio=0.85,
                 spacing=10,
                 run_spacing=10,
+                scroll=ft.ScrollMode.AUTO,
             )
 
             for recipe in recipes:
                 grid.controls.append(build_recipe_card(recipe))
 
             grid.controls.append(add_card)
+            content_view = grid
 
-            page.add(header, ft.Divider(), grid)
+        # Собираем единый макет без двойных вызовов page.add
+        category_layout = ft.Column(
+            [
+                header,
+                ft.Divider(height=1, color=ft.Colors.OUTLINE_VARIANT),
+                content_view,
+            ],
+            expand=True,
+            spacing=10,
+        )
 
         page.navigation_bar = get_nav_bar(0)
+        page.add(wrap_in_bounds(category_layout))
         page.update()
 
     # --- 4. ЭКРАН КОРЗИНЫ ---
@@ -555,7 +704,7 @@ def main(page: ft.Page):
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
                 expand=True
             )
-            page.add(header, ft.Divider(), empty_state)
+            page.add(wrap_in_bounds(ft.Column([header, ft.Divider(), empty_state], expand=True, spacing=10)))
         else:
             cart_list = ft.ListView(expand=True, spacing=10)
 
@@ -610,10 +759,10 @@ def main(page: ft.Page):
                     padding=15
                 ),
                 on_click=lambda e: show_shopping_list_view(),
-                width=400
+                expand=True
             )
 
-            page.add(header, ft.Divider(), cart_list, calc_button)
+            page.add(wrap_in_bounds(ft.Column([header, ft.Divider(), cart_list, calc_button], expand=True, spacing=10)))
 
         page.navigation_bar = get_nav_bar(1)
         page.update()
@@ -848,7 +997,7 @@ def main(page: ft.Page):
                     icon=ft.Icons.SHOPPING_BAG,
                     style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE, padding=15),
                     on_click=lambda e: switch_mode(True),
-                    width=400
+                    expand=True
                 )
             else:
                 bottom_actions = ft.Column(
@@ -858,19 +1007,19 @@ def main(page: ft.Page):
                             icon=ft.Icons.CHECK_CIRCLE,
                             style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_700, color=ft.Colors.WHITE, padding=15),
                             on_click=finish_shopping_session,
-                            width=400
+                            expand=True
                         ),
                         ft.OutlinedButton(
                             "Вернуться к ревизии «А что есть дома?»",
                             icon=ft.Icons.EDIT,
                             on_click=lambda e: switch_mode(False),
-                            width=400
+                            expand=True
                         ),
                     ],
                     spacing=8
                 )
 
-            page.add(header, ft.Divider(), list_container, bottom_actions)
+            page.add(wrap_in_bounds(ft.Column([header, ft.Divider(), list_container, bottom_actions], expand=True, spacing=10)))
             page.navigation_bar = get_nav_bar(1)
             page.update()
 
@@ -879,9 +1028,10 @@ def main(page: ft.Page):
     # --- 6. ГЛАВНЫЙ ЭКРАН ---
 
     def show_main_view():
-        page.controls.clear()
+        page.controls.clear() # Полностью чистим страницу
+        page.appbar = main_appbar
 
-        header = ft.Text("Категории рецептов", size=24, weight=ft.FontWeight.BOLD)
+        header = ft.Text("Категории рецептов", size=22, weight=ft.FontWeight.BOLD)
         categories = repo.get_categories()
 
         def build_category_card(cat_name: str):
@@ -889,7 +1039,7 @@ def main(page: ft.Page):
                 content=ft.Column(
                     [
                         ft.Icon(ft.Icons.RESTAURANT_MENU, size=32, color=ft.Colors.ORANGE_800),
-                        ft.Text(cat_name, weight=ft.FontWeight.BOLD, size=16),
+                        ft.Text(cat_name, weight=ft.FontWeight.BOLD, size=15),
                     ],
                     alignment=ft.MainAxisAlignment.CENTER,
                     horizontal_alignment=ft.CrossAxisAlignment.CENTER,
@@ -901,20 +1051,34 @@ def main(page: ft.Page):
                 on_click=lambda e, name=cat_name: show_category_view(name),
             )
 
+        # Сетка категорий с включенной прокруткой
         categories_grid = ft.GridView(
             expand=True,
             runs_count=2,
             max_extent=180,
-            child_aspect_ratio=1.1,
+            child_aspect_ratio=1.0,
             spacing=10,
             run_spacing=10,
+            scroll=ft.ScrollMode.AUTO, # 👈 Добавляем скролл, чтобы ничего не налезало
         )
 
         for cat in categories:
             categories_grid.controls.append(build_category_card(cat))
 
+        main_layout = ft.Column(
+            [
+                header, 
+                ft.Divider(height=1, color=ft.Colors.OUTLINE_VARIANT), 
+                categories_grid
+            ], 
+            expand=True,
+            spacing=10
+        )
+
         page.navigation_bar = get_nav_bar(0)
-        page.add(header, ft.Divider(), categories_grid)
+        
+        # Добавляем ТОЛЬКО один контейнер
+        page.add(wrap_in_bounds(main_layout))
         page.update()
 
     show_main_view()

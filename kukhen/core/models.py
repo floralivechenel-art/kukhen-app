@@ -6,31 +6,7 @@ class Ingredient:
     name: str              # Название, например: "Молоко"
     amount: float          # Количество, например: 0.5
     unit: str              # Ед. изм.: "л", "г", "шт"
-    category: str = "Прочее"  # Отдел в магазине: "Молочка", "Овощи/Фрукты", "Бакалея"
-
-@dataclass
-class Recipe:
-    id: str
-    title: str
-    category: str          # "Завтрак", "Мясо", "Десерты" и т.д.
-    cooking_time: int      # В минутах
-    ingredients: List[Ingredient]
-    instructions: str
-    image_path: Optional[str] = None  # Путь к фото
-
-@dataclass
-class Cart:
-    recipes: List[Recipe] = field(default_factory=list)
-
-    from dataclasses import dataclass, field
-from typing import List, Optional
-
-@dataclass
-class Ingredient:
-    name: str
-    amount: float
-    unit: str
-    category: str = "Прочее"
+    category: str = "Прочее"  # Отдел в магазине: "Молочные продукты", "Овощи/Фрукты" и т.д.
 
     def to_dict(self) -> dict:
         return {
@@ -53,11 +29,12 @@ class Ingredient:
 class Recipe:
     id: str
     title: str
-    category: str
-    cooking_time: int
+    category: str          # "Завтрак", "Мясо", "Десерты" и т.д.
+    cooking_time: int      # В минутах
     ingredients: List[Ingredient]
     instructions: str
-    image_path: Optional[str] = None
+    image_path: Optional[str] = None  # Путь к фото
+    comment: str = ""     # Заметка / секрет блюда
 
     def to_dict(self) -> dict:
         return {
@@ -67,7 +44,8 @@ class Recipe:
             "cooking_time": self.cooking_time,
             "ingredients": [ing.to_dict() for ing in self.ingredients],
             "instructions": self.instructions,
-            "image_path": self.image_path
+            "image_path": self.image_path,
+            "comment": self.comment
         }
 
     @classmethod
@@ -79,5 +57,10 @@ class Recipe:
             cooking_time=int(data.get("cooking_time", 0)),
             ingredients=[Ingredient.from_dict(ing) for ing in data.get("ingredients", [])],
             instructions=data.get("instructions", ""),
-            image_path=data.get("image_path")
+            image_path=data.get("image_path"),
+            comment=data.get("comment", "")
         )
+
+@dataclass
+class Cart:
+    recipes: List[Recipe] = field(default_factory=list)
