@@ -1,22 +1,20 @@
 import os
 import json
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 
-# Запрашиваем доступ ТОЛЬКО к файлам, созданным самым приложением
+# Запрашиваем доступ ТОЛЬКО к файлам, созданным самим приложением
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 BACKUP_FILE_NAME = "kukhen_backup.json"
 
 # Вычисляем точный путь к директории приложения на устройстве
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CREDENTIALS_PATH = os.path.join(BASE_DIR, 'credentials.json')
 TOKEN_PATH = os.path.join(BASE_DIR, 'token.json')
 
 def get_drive_service():
-    """Авторизация и получение сервиса Google Drive"""
+    """Авторизация и получение сервиса Google Drive по токену"""
     creds = None
 
     # Проверяем наличие токена авторизации
@@ -27,25 +25,10 @@ def get_drive_service():
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            if not os.path.exists(CREDENTIALS_PATH):
-                raise FileNotFoundError("Файл credentials.json не найден! Поместите его рядом с main.py.")
-            
-            # Для мобильных устройств используем порт 8080 или редирект на urn:ietf:wg:oauth:2.0:oob
-            flow = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_PATH, SCOPES)
-            
-            # В зависимости от типа клиента в Google Cloud Console:
-            try:
-                # Пробуем запустить с закрытием порта для мобильных WebView
-                creds = flow.run_local_server(port=8080, open_browser=True)
-            except Exception:
-                # Если локальный сервер недоступен на Android, используется прямой поток
-                flow.redirect_uri = 'urn:ietf:wg:oauth:2.0:oob'
-                auth_url, _ = flow.authorization_url(prompt='consent')
-                raise RuntimeError(f"Перейдите по ссылке для авторизации: {auth_url}")
-            
-        # Сохраняем сессию
-        with open(TOKEN_PATH, 'w') as token:
-            token.write(creds.to_json())
+            raise FileNotFoundError(
+                "Файл token.json не найден или недействителен! "
+                "Создайте token.json на ПК и положите в папку приложения."
+            )
 
     return build('drive', 'v3', credentials=creds)
 
