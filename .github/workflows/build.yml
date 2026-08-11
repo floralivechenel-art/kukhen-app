@@ -35,6 +35,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install flet google-auth google-auth-oauthlib google-api-python-client requests
 
+      - name: Install Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.8'
+
+      - name: Verify Flutter
+        run: |
+          flutter --version
+          flutter doctor -v || true
+
       - name: Build APK with Flet
         run: |
           set -eux
