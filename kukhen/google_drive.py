@@ -1,8 +1,23 @@
 import os
 import json
+import tempfile
+import sys
+import importlib
+
+# ANDROID FIX: Настраиваем каталог кэша ПЕРЕД импортом googleapiclient
+# Это предотвращает попытку доступа к файлам внутри sitepackages.zip
+try:
+    # На Android используем временный каталог приложения
+    if hasattr(sys, 'mobile') or 'FLET_ANDROID' in os.environ or os.path.exists('/data/data'):
+        # Создаем каталог кэша в доступной директории
+        cache_dir = os.path.expanduser('~/.cache/kukhen')
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir, exist_ok=True)
+        os.environ['GOOGLE_API_PYTHON_CLIENT_CACHE_DIR'] = cache_dir
+except Exception:
+    pass
 
 # Отключаем файловый кэш googleapiclient на уровне переменных окружения
-# Это гарантирует, что библиотека не будет пытаться писать в sitepackages.zip
 os.environ['GOOGLE_PYTHON_CLIENT_PREVENT_FILE_CACHE'] = '1'
 
 from google.oauth2.credentials import Credentials
@@ -36,8 +51,29 @@ def get_drive_service():
                 "Файл token.json не найден или недействителен!"
             )
 
-    # Передаем cache_discovery=False и static_discovery=False (если доступно) для полной защиты от zip-кэша
-    return build('drive', 'v3', credentials=creds, cache_discovery=False)
+    # ANDROID FIX: Отключаем ВСЕ виды кэширования для правильной работы на мобильных устройствах
+    try:
+        return build(
+            'drive', 'v3', 
+            credentials=creds, 
+            cache_discovery=False,
+            static_discovery=False  # Предотвращает загрузку статических файлов
+        )
+    except Exception as e:
+        # Если произойдет ошибка с кэшем, пробуем еще раз с более жесткими ограничениями
+        try:
+            # Очищаем кэш модулей googleapiclient
+            if 'googleapiclient.discovery' in sys.modules:
+                importlib.reload(sys.modules['googleapiclient.discovery'])
+        except:
+            pass
+        
+        return build(
+            'drive', 'v3', 
+            credentials=creds, 
+            cache_discovery=False,
+            static_discovery=False
+        )
 
 def upload_backup_to_drive(local_json_path=None):
     """Загрузка локальной базы на Google Диск"""
@@ -77,8 +113,18 @@ def upload_backup_to_drive(local_json_path=None):
             ).execute()
             return True, "База рецептов впервые сохранена на Google Диск!"
 
+    except IsADirectoryError as e:
+        # ANDROID FIX: Обработка ошибки с доступом к ZIP-архиву как к директории
+        return False, "Ошибка доступа к файловой системе (проблема с кэшем). Пожалуйста, перезагрузите приложение и попробуйте снова."
+    except PermissionError as e:
+        # Обработка ошибок доступа на Android
+        return False, "Нет разрешения на доступ к файлам. Пожалуйста, проверьте разрешения приложения."
     except Exception as e:
-        return False, f"Ошибка загрузки на Диск: {str(e)}"
+        error_msg = str(e)
+        # Скрываем внутренние пути для лучшей читаемости ошибки
+        if 'sitepackages.zip' in error_msg:
+            return False, "Ошибка кэша библиотеки. Пожалуйста, очистите данные приложения и попробуйте снова."
+        return False, f"Ошибка загрузки на Диск: {error_msg}"
 
 def download_backup_from_drive(local_json_path=None):
     """Скачивание базы с Google Диска и обновление локального файла"""
@@ -105,5 +151,38 @@ def download_backup_from_drive(local_json_path=None):
 
         return True, "Рецепты успешно восстановлены с Google Диска!"
 
+    except IsADirectoryError as e:
+        # ANDROID FIX: Обработка ошибки с доступом к ZIP-архиву как к директории
+        return False, "Ошибка доступа к файловой системе (проблема с кэшем). Пожалуйста, перезагрузите приложение и попробуйте снова."
+    except PermissionError as e:
+        # Обработка ошибок доступа на Android
+        return False, "Нет разрешения на доступ к файлам. Пожалуйста, проверьте разрешения приложения."
     except Exception as e:
-        return False, f"Ошибка восстановления с Диска: {str(e)}"
+        error_msg = str(e)
+        # Скрываем внутренние пути для лучшей читаемости ошибки
+        if 'sitepackages.zip' in error_msg:
+            return False, "Ошибка кэша библиотеки. Пожалуйста, очистите данные приложения и попробуйте снова."
+        return False, f"Ошибка восстановления с Диска: {error_msg}"
+
+def check_sync_status():
+    """Проверяет статус синхронизации (для логирования и отладки)"""
+    try:
+        # Проверяем наличие токена
+        if not os.path.exists(TOKEN_PATH):
+            return False, "Токен Google авторизации не найден. Пожалуйста, авторизуйтесь."
+        
+        # Пытаемся получить сервис
+        service = get_drive_service()
+        
+        # Проверяем доступ к Google Drive
+        about = service.about().get(fields='user').execute()
+        
+        return True, f"Синхронизация работает. Аккаунт: {about['user']['displayName']}"
+    
+    except FileNotFoundError as e:
+        return False, "Ошибка авторизации. Пожалуйста, авторизуйтесь заново."
+    except Exception as e:
+        error_msg = str(e)
+        if 'No internet' in error_msg or 'ConnectionError' in error_msg:
+            return False, "Нет интернет-соединения. Данные сохранены локально."
+        return False, f"Ошибка проверки синхронизации: {error_msg}"

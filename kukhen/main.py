@@ -1,8 +1,30 @@
 import flet as ft
 import uuid
+import os
+import sys
 from storage.repository import RecipeRepository
 from core.models import Recipe, Ingredient
 from google_drive import upload_backup_to_drive, download_backup_from_drive
+
+# ANDROID PERMISSIONS: Проверка и запрос разрешений на запуск
+def request_android_permissions():
+    """Запрашивает необходимые разрешения для работы на Android"""
+    try:
+        # Проверяем, работаем ли на Android
+        if hasattr(sys, 'mobile') or 'FLET_ANDROID' in os.environ:
+            from android.permissions import request_permissions, Permission  # type: ignore
+            
+            # Запрашиваем разрешения при первом запуске
+            request_permissions([
+                Permission.INTERNET,           # Для синхронизации с Google Drive
+                Permission.READ_EXTERNAL_STORAGE,  # Для доступа к файлам
+                Permission.WRITE_EXTERNAL_STORAGE  # Для сохранения данных
+            ])
+    except ImportError:
+        # На не-Android платформах импорт будет невозможен, это нормально
+        pass
+    except Exception as e:
+        print(f"Ошибка запроса разрешений: {e}")
 
 UNITS = [
     "г", 
@@ -39,6 +61,8 @@ def format_amount(val: float) -> str:
     return str(round(val, 2))
 
 def main(page: ft.Page):
+    # Запрашиваем разрешения перед началом работы
+    request_android_permissions()
     
     page.title = "KUKHEN — Личные рецепты"
     page.theme_mode = ft.ThemeMode.LIGHT
@@ -108,12 +132,17 @@ def main(page: ft.Page):
     )
 
     def auto_sync_to_drive():
-        """Тихая отправка базы на Google Диск при изменениях"""
+        """Автоматическая отправка базы на Google Диск при изменениях"""
         try:
-            # Отправляем копию в облако, не мешая пользователю
-            upload_backup_to_drive()
+            success, message = upload_backup_to_drive()
+            if not success:
+                # Логируем ошибку, но не беспокоим пользователя
+                print(f"⚠️  Синхронизация с Google Drive: {message}")
+            else:
+                print(f"✅ {message}")
         except Exception as err:
-            print(f"Фоновая синхронизация пропущена: {err}")
+            # Это не критическая ошибка — данные сохранены локально
+            print(f"📱 Локально сохранено. Синхронизация с облаком: {err}")
 
     # Навигация между вкладками
     def on_nav_change(e):
