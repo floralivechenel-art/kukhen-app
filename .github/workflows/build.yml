@@ -16,15 +16,15 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     
     - name: Set up Java
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         java-version: '11'
         distribution: 'adopt'
@@ -54,7 +54,7 @@ jobs:
         ANDROID_HOME: ${{ runner.temp }}/android
     
     - name: Upload APK artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: success()
       with:
         name: kukhen-debug-apk
@@ -62,9 +62,17 @@ jobs:
         retention-days: 30
     
     - name: Upload build logs on failure
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: failure()
       with:
         name: build-logs
         path: kukhen/.buildozer/
         retention-days: 7
+    
+    - name: Notify on success
+      if: success()
+      run: echo "✅ APK успешно собран! Скачайте из Artifacts."
+    
+    - name: Notify on failure
+      if: failure()
+      run: echo "❌ Сборка не удалась. Проверьте логи в Artifacts."
