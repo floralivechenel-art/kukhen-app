@@ -60,8 +60,8 @@ jobs:
         echo "8dab4689b93f02db8769f39a2c38d46352afaea5" > ~/.android/licenses/intel-android-sysimage-license
         echo "e4fd0d2c4145d3c6ad77f13852580bc0e108e6b91b0f3d1cb0e6a53b720e5e84" > ~/.android/licenses/google-android-sdk-license
         
-        # Устанавливаем платформы и build-tools
-        sdkmanager "platform-tools" "platforms;android-31" "build-tools;31.0.0"
+        # Устанавливаем платформы и build-tools версии 37
+        sdkmanager "platform-tools" "platforms;android-31" "build-tools;37.0.0"
       env:
         ANDROID_HOME: ~/android-sdk
     
