@@ -763,17 +763,24 @@ def main(page: ft.Page):
                 )
                 cart_list.controls.append(card)
 
-            calc_button = ft.ElevatedButton(
-                "Сформировать список покупок",
-                icon=ft.Icons.CHECKLIST,
-                style=ft.ButtonStyle(
-                    bgcolor=ft.Colors.ORANGE_500, 
-                    color=ft.Colors.WHITE,
-                    padding=15
-                ),
-                on_click=lambda e: show_shopping_list_view(),
-                expand=True
-            )
+                calc_button = ft.ElevatedButton(
+                    "Сформировать список покупок",
+                    icon=ft.Icons.CHECKLIST,
+                    style=ft.ButtonStyle(
+                        bgcolor=ft.Colors.ORANGE_500, 
+                        color=ft.Colors.WHITE,
+                        padding=15,
+                        shape=ft.RoundedRectangleBorder(radius=10) # Фиксируем скругление углов
+                    ),
+                    on_click=lambda e: show_shopping_list_view(),
+                     # expand=True УБРАНО! Кнопка больше не растягивается на весь экран
+                )
+
+                 # Чтобы кнопка растягивалась только в ширину (но не в высоту):
+                button_container = ft.Row([calc_button], alignment=ft.MainAxisAlignment.CENTER)
+
+                # В колонке даем expand=True для cart_list, чтобы список скроллился, а кнопка была внизу:
+                cart_list.expand = True 
 
             page.add(wrap_in_bounds(ft.Column([header, ft.Divider(), cart_list, calc_button], expand=True, spacing=10)))
 
@@ -800,7 +807,7 @@ def main(page: ft.Page):
 
         is_shopping_mode = [False]
         shopping_raw = repo.calculate_shopping_list()
-        
+
         shopping_state = {}
         for dept, items in shopping_raw.items():
             shopping_state[dept] = {}
@@ -809,7 +816,7 @@ def main(page: ft.Page):
                     "original_needed": amount,
                     "needed": amount,
                     "bought": False,
-                    "in_cart": False
+                    "in_cart": False,
                 }
 
         def refresh_ui():
@@ -820,10 +827,10 @@ def main(page: ft.Page):
             current_needed = item["needed"]
 
             input_amt = ft.TextField(
-                label=f"Сколько есть? ({unit})", 
+                label=f"Сколько есть? ({unit})",
                 value=format_amount(current_needed),
                 keyboard_type=ft.KeyboardType.NUMBER,
-                autofocus=True
+                autofocus=True,
             )
 
             def cancel_dialog(e):
@@ -845,7 +852,7 @@ def main(page: ft.Page):
                 else:
                     item["needed"] = round(remains, 2)
                     item["bought"] = False
-                
+
                 dialog.open = False
                 page.update()
                 refresh_ui()
@@ -864,24 +871,24 @@ def main(page: ft.Page):
                     [
                         ft.Text(f"Изначально нужно: {format_amount(item['original_needed'])} {unit}"),
                         ft.Container(height=5),
-                        input_amt
+                        input_amt,
                     ],
-                    tight=True
+                    tight=True,
                 ),
                 actions=[
                     ft.TextButton("Отмена", on_click=cancel_dialog),
                     ft.ElevatedButton(
-                        "Учесть остаток", 
+                        "Учесть остаток",
                         style=ft.ButtonStyle(bgcolor=ft.Colors.ORANGE_400, color=ft.Colors.WHITE),
-                        on_click=apply_partial
+                        on_click=apply_partial,
                     ),
                     ft.ElevatedButton(
-                        "Мы богаты (Всё есть)", 
+                        "Мы богаты (Всё есть)",
                         style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE),
-                        on_click=apply_all_have
+                        on_click=apply_all_have,
                     ),
                 ],
-                actions_alignment=ft.MainAxisAlignment.END
+                actions_alignment=ft.MainAxisAlignment.END,
             )
             page.overlay.append(dialog)
             dialog.open = True
@@ -904,15 +911,16 @@ def main(page: ft.Page):
             cart_raw = repo.get_cart_raw()
             for recipe_id in list(cart_raw.keys()):
                 repo.remove_from_cart(recipe_id)
-            
+
             page.snack_bar = ft.SnackBar(
                 content=ft.Text("Покупки завершены! Корзина очищена. Приятной готовки! 🍳"),
-                bgcolor=ft.Colors.GREEN_700
+                bgcolor=ft.Colors.GREEN_700,
             )
             page.snack_bar.open = True
             show_main_view()
 
-        list_container = ft.Column(expand=True, scroll=ft.ScrollMode.AUTO, spacing=15)
+        # Заменили Column на ListView для устойчивого отображения на Android
+        list_container = ft.ListView(expand=True, spacing=15)
 
         def switch_mode(to_shopping: bool):
             is_shopping_mode[0] = to_shopping
@@ -928,18 +936,18 @@ def main(page: ft.Page):
             header = ft.Row(
                 [
                     ft.IconButton(
-                        icon=ft.Icons.ARROW_BACK, 
-                        on_click=lambda e: switch_mode(False) if in_shop else show_cart_view(), 
-                        tooltip="Назад"
+                        icon=ft.Icons.ARROW_BACK,
+                        on_click=lambda e: switch_mode(False) if in_shop else show_cart_view(),
+                        tooltip="Назад",
                     ),
                     ft.Text(header_title, size=22, weight=ft.FontWeight.BOLD),
                 ],
                 alignment=ft.MainAxisAlignment.START,
             )
-            
+
             for dept, items in shopping_state.items():
                 dept_cards = []
-                
+
                 for (name, unit), info in items.items():
                     needed = info["needed"]
                     original = info["original_needed"]
@@ -964,9 +972,9 @@ def main(page: ft.Page):
                             value=bought_home or is_partially_have,
                             label_style=ft.TextStyle(
                                 decoration=ft.TextDecoration.LINE_THROUGH if bought_home else ft.TextDecoration.NONE,
-                                color=ft.Colors.GREY_500 if bought_home else ft.Colors.BLACK
+                                color=ft.Colors.GREY_500 if bought_home else ft.Colors.BLACK,
                             ),
-                            on_change=lambda e, d=dept, n=name, u=unit: toggle_item_home(d, n, u, e.control.value)
+                            on_change=lambda e, d=dept, n=name, u=unit: toggle_item_home(d, n, u, e.control.value),
                         )
                     else:
                         title_text = f"{name} ({format_amount(needed)} {unit})"
@@ -975,9 +983,9 @@ def main(page: ft.Page):
                             value=in_cart,
                             label_style=ft.TextStyle(
                                 decoration=ft.TextDecoration.LINE_THROUGH if in_cart else ft.TextDecoration.NONE,
-                                color=ft.Colors.GREY_400 if in_cart else ft.Colors.BLACK
+                                color=ft.Colors.GREY_400 if in_cart else ft.Colors.BLACK,
                             ),
-                            on_change=lambda e, d=dept, n=name, u=unit: toggle_item_shop(d, n, u, e.control.value)
+                            on_change=lambda e, d=dept, n=name, u=unit: toggle_item_shop(d, n, u, e.control.value),
                         )
 
                     dept_cards.append(cb)
@@ -988,9 +996,9 @@ def main(page: ft.Page):
                             [
                                 ft.Text(dept, weight=ft.FontWeight.BOLD, color=ft.Colors.ORANGE_800, size=16),
                                 ft.Divider(height=1),
-                                *dept_cards
+                                *dept_cards,
                             ],
-                            spacing=8
+                            spacing=8,
                         ),
                         bgcolor=ft.Colors.WHITE,
                         padding=12,
@@ -1000,17 +1008,27 @@ def main(page: ft.Page):
                             bottom=ft.BorderSide(1, ft.Colors.GREY_200),
                             left=ft.BorderSide(1, ft.Colors.GREY_200),
                             right=ft.BorderSide(1, ft.Colors.GREY_200),
-                        )
+                        ),
                     )
                     list_container.controls.append(dept_group)
 
+            # Центрируем и аккуратно оформляем кнопки без expand=True для высоты
             if not in_shop:
-                bottom_actions = ft.ElevatedButton(
-                    "За покупками! 🛒",
-                    icon=ft.Icons.SHOPPING_BAG,
-                    style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE, padding=15),
-                    on_click=lambda e: switch_mode(True),
-                    expand=True
+                bottom_actions = ft.Row(
+                    [
+                        ft.ElevatedButton(
+                            "За покупками! 🛒",
+                            icon=ft.Icons.SHOPPING_BAG,
+                            style=ft.ButtonStyle(
+                                bgcolor=ft.Colors.GREEN_600,
+                                color=ft.Colors.WHITE,
+                                padding=15,
+                                shape=ft.RoundedRectangleBorder(radius=10),
+                            ),
+                            on_click=lambda e: switch_mode(True),
+                        )
+                    ],
+                    alignment=ft.MainAxisAlignment.CENTER,
                 )
             else:
                 bottom_actions = ft.Column(
@@ -1018,18 +1036,26 @@ def main(page: ft.Page):
                         ft.ElevatedButton(
                             "Теперь будем сыты, завершаем покупки! ✨",
                             icon=ft.Icons.CHECK_CIRCLE,
-                            style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_700, color=ft.Colors.WHITE, padding=15),
+                            style=ft.ButtonStyle(
+                                bgcolor=ft.Colors.GREEN_700,
+                                color=ft.Colors.WHITE,
+                                padding=15,
+                                shape=ft.RoundedRectangleBorder(radius=10),
+                            ),
                             on_click=finish_shopping_session,
-                            expand=True
                         ),
                         ft.OutlinedButton(
                             "Вернуться к ревизии «А что есть дома?»",
                             icon=ft.Icons.EDIT,
+                            style=ft.ButtonStyle(
+                                padding=12,
+                                shape=ft.RoundedRectangleBorder(radius=10),
+                            ),
                             on_click=lambda e: switch_mode(False),
-                            expand=True
                         ),
                     ],
-                    spacing=8
+                    spacing=8,
+                    horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
                 )
 
             page.add(wrap_in_bounds(ft.Column([header, ft.Divider(), list_container, bottom_actions], expand=True, spacing=10)))

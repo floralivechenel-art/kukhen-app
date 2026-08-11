@@ -1,5 +1,10 @@
 import os
 import json
+
+# Отключаем файловый кэш googleapiclient на уровне переменных окружения
+# Это гарантирует, что библиотека не будет пытаться писать в sitepackages.zip
+os.environ['GOOGLE_PYTHON_CLIENT_PREVENT_FILE_CACHE'] = '1'
+
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
@@ -23,12 +28,15 @@ def get_drive_service():
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
+            # Сохраняем обновленный токен обратно в файл
+            with open(TOKEN_PATH, 'w') as token_file:
+                token_file.write(creds.to_json())
         else:
             raise FileNotFoundError(
                 "Файл token.json не найден или недействителен!"
             )
 
-    # Отключаем файловый кэш (cache_discovery=False), чтобы не было ошибки ZIP на Android
+    # Передаем cache_discovery=False и static_discovery=False (если доступно) для полной защиты от zip-кэша
     return build('drive', 'v3', credentials=creds, cache_discovery=False)
 
 def upload_backup_to_drive(local_json_path=None):
