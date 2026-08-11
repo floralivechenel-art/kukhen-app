@@ -39,8 +39,11 @@ jobs:
         run: |
           set -eux
           cd kukhen
-          # build in release mode to produce final APK(s)
-          flet build apk --org com.flet.kukhen --release
+          # show flet version and help for debug
+          flet --version || true
+          flet build --help || true
+          # build APK (no --release flag: use default build behavior)
+          flet build apk --org com.flet.kukhen
 
       - name: List build directory (for debugging)
         run: |
