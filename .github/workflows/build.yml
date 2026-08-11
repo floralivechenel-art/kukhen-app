@@ -18,6 +18,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
+    - name: Install Git first
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git
+    
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -29,18 +34,16 @@ jobs:
         java-version: '11'
         distribution: 'adopt'
     
-    - name: Install system dependencies
+    - name: Install Android SDK
       run: |
-        sudo apt-get update
-        sudo apt-get install -y git android-sdk android-sdk-build-tools android-sdk-platform-tools
+        sudo apt-get install -y android-sdk android-sdk-build-tools android-sdk-platform-tools
         mkdir -p ~/.android
         touch ~/.android/repositories.cfg
         
         # Принимаем все лицензии Android SDK
         yes | sudo "${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager" --licenses || true
-        
-        export ANDROID_HOME=/usr/lib/android-sdk
-        export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+      env:
+        ANDROID_HOME: /usr/lib/android-sdk
     
     - name: Install Python dependencies
       run: |
@@ -60,7 +63,7 @@ jobs:
         buildozer android debug
       env:
         ANDROID_HOME: /usr/lib/android-sdk
-        PATH: /usr/lib/android-sdk/cmdline-tools/latest/bin:/usr/lib/android-sdk/platform-tools:$PATH
+        PATH: /usr/lib/android-sdk/cmdline-tools/latest/bin:/usr/lib/android-sdk/platform-tools:/usr/bin:$PATH
     
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
