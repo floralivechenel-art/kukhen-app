@@ -29,10 +29,10 @@ jobs:
         java-version: '11'
         distribution: 'adopt'
     
-    - name: Install Android SDK tools
+    - name: Install system dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y android-sdk android-sdk-build-tools android-sdk-platform-tools
+        sudo apt-get install -y git android-sdk android-sdk-build-tools android-sdk-platform-tools
         mkdir -p ~/.android
         touch ~/.android/repositories.cfg
         
