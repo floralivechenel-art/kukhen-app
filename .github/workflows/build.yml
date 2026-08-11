@@ -45,16 +45,23 @@ jobs:
         unzip -q commandlinetools-linux-9477386_latest.zip
         mv cmdline-tools latest
         
-        # Устанавливаем переменную окружения
+        # Устанавливаем переменные окружения
         export ANDROID_HOME=~/android-sdk
         export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
         
-        # Принимаем все лицензии через sdkmanager
-        mkdir -p ~/.android
-        yes '' | sdkmanager --licenses || true
+        # Создаем директорию licenses и принимаем лицензии
+        mkdir -p ~/.android/licenses
         
-        # Устанавливаем нужные пакеты
-        sdkmanager "platform-tools" "platforms;android-31" "build-tools;31.0.0" || true
+        # Записываем хеши лицензий
+        echo "24333f8a63b6825ea9c5514f83c9ca4d0e7acfe1" > ~/.android/licenses/android-sdk-license
+        echo "84831b9409646a918e30573bab4c9c91346d8abd" > ~/.android/licenses/android-google-play-services-license
+        echo "d56f5187479451eabf01fb78af6dfcb131b33910e" > ~/.android/licenses/android-ndk-license
+        echo "5be63a4997ce073d76597caf1b33f21e2c6affdc" > ~/.android/licenses/android-sdk-preview-license
+        echo "8dab4689b93f02db8769f39a2c38d46352afaea5" > ~/.android/licenses/intel-android-sysimage-license
+        echo "e4fd0d2c4145d3c6ad77f13852580bc0e108e6b91b0f3d1cb0e6a53b720e5e84" > ~/.android/licenses/google-android-sdk-license
+        
+        # Устанавливаем платформы и build-tools
+        sdkmanager "platform-tools" "platforms;android-31" "build-tools;31.0.0"
       env:
         ANDROID_HOME: ~/android-sdk
     
