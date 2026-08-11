@@ -21,7 +21,7 @@ jobs:
     - name: Install Git first
       run: |
         sudo apt-get update
-        sudo apt-get install -y git
+        sudo apt-get install -y git wget unzip
     
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -36,27 +36,34 @@ jobs:
     
     - name: Install Android SDK
       run: |
-        sudo apt-get install -y android-sdk android-sdk-build-tools android-sdk-platform-tools
+        # Установка Android SDK через commandlinetools
+        mkdir -p ~/android-sdk/cmdline-tools
+        cd ~/android-sdk/cmdline-tools
         
-        # Создаем директорию лицензий
+        # Скачиваем commandlinetools
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip
+        unzip -q commandlinetools-linux-9477386_latest.zip
+        mv cmdline-tools latest
+        
+        # Устанавливаем переменную окружения
+        export ANDROID_HOME=~/android-sdk
+        export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+        
+        # Принимаем все лицензии через sdkmanager
         mkdir -p ~/.android
+        yes '' | sdkmanager --licenses || true
         
-        # Принимаем лицензии автоматически (без интерактивного диалога)
-        echo -e "\n8939ba89b0942ffe6cce9003a0cee246339a3135c0" > ~/.android/android-sdk-license
-        echo -e "\n24333f8a63b6825ea9c5514f83c9ca4d0e7acfe1" > ~/.android/android-sdk-preview-license
-        echo -e "\nd56f5187479451eabf01fb78af6dfcb131b33910e" > ~/.android/android-ndk-license
-        echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" > ~/.android/android-google-play-services-license
-        
-        export ANDROID_HOME=/usr/lib/android-sdk
+        # Устанавливаем нужные пакеты
+        sdkmanager "platform-tools" "platforms;android-31" "build-tools;31.0.0" || true
       env:
-        ANDROID_HOME: /usr/lib/android-sdk
+        ANDROID_HOME: ~/android-sdk
     
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         pip install buildozer cython
       env:
-        ANDROID_HOME: /usr/lib/android-sdk
+        ANDROID_HOME: ~/android-sdk
     
     - name: Install project dependencies
       run: |
@@ -68,8 +75,8 @@ jobs:
         cd kukhen
         buildozer android debug
       env:
-        ANDROID_HOME: /usr/lib/android-sdk
-        PATH: /usr/lib/android-sdk/cmdline-tools/latest/bin:/usr/lib/android-sdk/platform-tools:/usr/bin:$PATH
+        ANDROID_HOME: ~/android-sdk
+        PATH: ~/android-sdk/cmdline-tools/latest/bin:~/android-sdk/platform-tools:/usr/bin:$PATH
     
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
