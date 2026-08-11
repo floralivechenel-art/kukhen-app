@@ -279,51 +279,64 @@ def main(page: ft.Page):
             add_step_row()
 
         def save_recipe(e):
-            
-            if not title_input.value.strip():
+            if not title_input.value or not title_input.value.strip():
                 title_input.error_text = "Введите название!"
                 page.update()
                 return
 
             parsed_ingredients = []
             for card in ingredients_column.controls:
-                col = card.content
+                # Безопасно достаем контролы из карточки
+                col = getattr(card, "content", None)
+                if not col or not getattr(col, "controls", None) or len(col.controls) < 2:
+                    continue
+
                 top_row = col.controls[0]
                 bottom_row = col.controls[1]
 
-                name_field = top_row.controls[0]
+                top_ctrls = getattr(top_row, "controls", [])
+                bottom_ctrls = getattr(bottom_row, "controls", [])
+
+                if not top_ctrls or len(bottom_ctrls) < 3:
+                    continue
+
+                name_field = top_ctrls[0]
                 name_val = name_field.value.strip() if name_field.value else ""
-                
+        
                 if name_val:
                     try:
-                        amt_val = float(bottom_row.controls[0].value)
+                        amt_val = float(bottom_ctrls[0].value) if bottom_ctrls[0].value else 1.0
                     except ValueError:
                         amt_val = 1.0
-                    
-                    unit_val = bottom_row.controls[1].value
-                    dept_val = bottom_row.controls[2].value
-                    
+            
+                    unit_val = bottom_ctrls[1].value
+                    dept_val = bottom_ctrls[2].value
+            
                     parsed_ingredients.append(
                         Ingredient(name=name_val.capitalize(), amount=amt_val, unit=unit_val, category=dept_val)
                     )
 
             steps_text = []
             for idx, row in enumerate(steps_column.controls):
-                step_val = row.controls[0].value.strip()
-                if step_val:
-                    steps_text.append(f"{idx + 1}. {step_val}")
+                row_ctrls = getattr(row, "controls", [])
+                if row_ctrls and row_ctrls[0].value:
+                    step_val = row_ctrls[0].value.strip()
+                    if step_val:
+                        steps_text.append(f"{idx + 1}. {step_val}")
 
             instructions = "\n".join(steps_text)
             recipe_id = recipe_to_edit.id if recipe_to_edit else str(uuid.uuid4())
+
+            comment_val = comment_input.value.strip() if comment_input.value else ""
 
             updated_recipe = Recipe(
                 id=recipe_id,
                 title=title_input.value.strip(),
                 category=category_name,
-                cooking_time=int(time_input.value) if time_input.value.isdigit() else 15,
+                cooking_time=int(time_input.value) if time_input.value and time_input.value.isdigit() else 15,
                 ingredients=parsed_ingredients,
                 instructions=instructions,
-                comment=comment_input.value.strip(),
+                comment=comment_val,
             )
 
             repo.add_recipe(updated_recipe)
@@ -331,7 +344,7 @@ def main(page: ft.Page):
             page.update()
             show_category_view(category_name)
 
-            # 🚀 Параллельно отправляем свежую базу на Google Диск:
+             # Автосинхронизация с Google Диском
             auto_sync_to_drive()
 
 

@@ -17,7 +17,6 @@ def get_drive_service():
     """Авторизация и получение сервиса Google Drive по токену"""
     creds = None
 
-    # Проверяем наличие токена авторизации
     if os.path.exists(TOKEN_PATH):
         creds = Credentials.from_authorized_user_file(TOKEN_PATH, SCOPES)
         
@@ -26,11 +25,11 @@ def get_drive_service():
             creds.refresh(Request())
         else:
             raise FileNotFoundError(
-                "Файл token.json не найден или недействителен! "
-                "Создайте token.json на ПК и положите в папку приложения."
+                "Файл token.json не найден или недействителен!"
             )
 
-    return build('drive', 'v3', credentials=creds)
+    # Отключаем файловый кэш (cache_discovery=False), чтобы не было ошибки ZIP на Android
+    return build('drive', 'v3', credentials=creds, cache_discovery=False)
 
 def upload_backup_to_drive(local_json_path=None):
     """Загрузка локальной базы на Google Диск"""
