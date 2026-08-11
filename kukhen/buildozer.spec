@@ -18,7 +18,7 @@ android.permissions = INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE
 android.api = 31
 android.minapi = 21
 android.ndk = 25b
-android.build_tools_version = 31.0.0
+android.build_tools_version = 37.0.0
 
 # Архитектуры
 android.archs = arm64-v8a
