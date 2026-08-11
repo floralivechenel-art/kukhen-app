@@ -12,22 +12,20 @@ version = 1.0
 requirements = python3,kivy,flet,google-auth,google-api-python-client,google-auth-oauthlib,google-auth-httplib2,requests
 
 # РАЗРЕШЕНИЯ НА ANDROID
-# Позволяет приложению читать и писать на внутреннее хранилище
 android.permissions = INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE
 
-# Уровень API для Android
+# Версии Android SDK
 android.api = 31
 android.minapi = 21
+android.ndk = 25b
+android.build_tools_version = 31.0.0
 
 # Архитектуры
-android.archs = arm64-v8a,armeabi-v7a
+android.archs = arm64-v8a
 
-# Ориентация экрана
-orientation = portrait
-
-# Иконка и оформление
-icon.filename = %(source.dir)s/icon.png
-presplash.filename = %(source.dir)s/presplash.png
+# Опции сборки
+android.gradle_dependencies = 
+android.add_src = 
 
 # Логирование
 log_level = 2
