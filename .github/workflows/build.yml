@@ -37,18 +37,25 @@ jobs:
 
       - name: Build APK with Flet
         run: |
+          set -eux
           cd kukhen
-          flet build android --org com.flet.kukhen
-        continue-on-error: true
+          # build in release mode to produce final APK(s)
+          flet build android --org com.flet.kukhen --release
 
-      - name: Find and upload APK
+      - name: List build directory (for debugging)
+        run: |
+          echo "Contents of kukhen:" && ls -la kukhen || true
+          echo "Contents of kukhen/build:" && ls -la kukhen/build || true
+          echo "Find any apk files:" && find kukhen -type f -name "*.apk" -print || true
+
+      - name: Upload any found APKs
         uses: actions/upload-artifact@v4
         if: success()
         with:
           name: kukhen-apk
           path: |
-            kukhen/build/outputs/apk/**/*.apk
-            kukhen/build/outputs/**/*.apk
+            kukhen/**/*.apk
+            kukhen/build/**/*.apk
           retention-days: 30
 
       - name: Upload build logs on failure
