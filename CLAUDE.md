@@ -9,9 +9,10 @@ Kukhen — a personal recipe manager and shopping-list generator built with [Fle
 ## Commands
 
 ```
-pip install -r requirements.txt   # install dependencies (flet, requests)
-python main.py                    # run the app (desktop window via Flet)
-flet run main.py                  # alternative: run via the Flet CLI
+pip install -r requirements.txt         # install app dependencies (flet, requests, supabase)
+pip install flet[cli,desktop]==0.28.3   # also needed for local dev: desktop window + `flet` CLI/build tooling
+python main.py                          # run the app (desktop window via Flet)
+flet run main.py                        # alternative: run via the Flet CLI
 python test_supabase.py           # manual smoke test of the Supabase connection (not a pytest suite)
 ```
 
@@ -39,5 +40,6 @@ Ingredient store "departments" (`DEPARTMENTS` in `main.py`) and measurement `UNI
 
 ## Notes
 
-- `credentials.json` (Google OAuth client) and `core/supabase_client.py` (Supabase anon key) contain live credentials committed in the repo — treat as sensitive, don't propagate them elsewhere.
-- This directory is not currently a git repository.
+- `core/supabase_client.py` hardcodes a live Supabase anon key and is committed to the repo (this is normal for a Supabase anon key, which is meant to be client-side/public — access control lives in Supabase RLS). `credentials.json` (unused Google OAuth client) is `.gitignore`d and must never be committed.
+- Repo is pushed to `floralivechenel-art/kukhen-app` on GitHub. `.github/workflows/build-apk.yml` builds an Android APK via `flet build apk` on every push to `main` (artifact `kukhen-apk`, retained 30 days).
+- `requirements.txt` must list ONLY the app's actual runtime dependencies (`flet`, `requests`, `supabase`) — `flet build apk` reads this file verbatim and tries to bundle every listed package onto the device. Adding build/dev-only extras (e.g. `flet[cli,desktop]`) breaks the Android build (it tries to cross-compile packages like `flet-cli`'s `watchdog` dependency, which has no Android wheel). For local desktop development, install `flet[cli,desktop]==0.28.3` separately (not via requirements.txt).
