@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+build/
+
+# Personal data / local cache — app recreates database.json on first run
+database.json
+
+# Unused Google OAuth credentials (live secret, not referenced by main.py)
+credentials.json
