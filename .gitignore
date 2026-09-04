@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 build/
+.claude/
 
 # Personal data / local cache — app recreates database.json on first run
 database.json
