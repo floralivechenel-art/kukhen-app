@@ -42,7 +42,7 @@ jobs:
             --org com.flet.kukhen \
             --project Kukhen \
             --product Kukhen \
-            --android-permissions android.permission.READ_EXTERNAL_STORAGE android.permission.WRITE_EXTERNAL_STORAGE
+            --android-permissions android.permission.READ_EXTERNAL_STORAGE=True android.permission.WRITE_EXTERNAL_STORAGE=True
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
